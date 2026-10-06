@@ -46,8 +46,6 @@ rule fastqc_raw:
         # FastQC names its outputs <input file name without .fastq.gz>_fastqc.*
         html=expand(f"{RESULTS}/qc/raw/fastqc/{{{{sample}}}}_{{read}}_fastqc.html", read=["R1", "R2"]),
         zip=expand(f"{RESULTS}/qc/raw/fastqc/{{{{sample}}}}_{{read}}_fastqc.zip", read=["R1", "R2"]),
-    log:
-        f"logs/fastqc_raw/{{sample}}.log",
     params:
         outdir=f"{RESULTS}/qc/raw/fastqc",
     threads: config["resources"]["fastqc"]["threads"]
@@ -61,7 +59,7 @@ rule fastqc_raw:
             --threads {threads}        # files processed at the same time
             --quiet                    # only print errors
         )
-        fastqc "${{args[@]}}" {input.r1} {input.r2} > {log} 2>&1
+        fastqc "${{args[@]}}" {input.r1} {input.r2}
         """
 
 
@@ -72,8 +70,6 @@ rule multiqc_raw:
     output:
         html=f"{RESULTS}/qc/raw/multiqc_report.html",
         data=directory(f"{RESULTS}/qc/raw/multiqc_report_data"),
-    log:
-        "logs/multiqc_raw/multiqc.log",
     params:
         outdir=f"{RESULTS}/qc/raw",
         fastqc_dir=f"{RESULTS}/qc/raw/fastqc",
@@ -89,7 +85,7 @@ rule multiqc_raw:
             --title "SCP raw reads"             # title shown at the top
             --force                             # overwrite an older report
         )
-        multiqc "${{args[@]}}" {params.fastqc_dir} > {log} 2>&1
+        multiqc "${{args[@]}}" {params.fastqc_dir}
         """
 
 
@@ -103,8 +99,6 @@ rule fastp:
         r2=f"{RESULTS}/reads/trimmed/{{sample}}_R2.fastq.gz",
         json=f"{RESULTS}/qc/fastp/{{sample}}.fastp.json",
         html=f"{RESULTS}/qc/fastp/{{sample}}.fastp.html",
-    log:
-        f"logs/fastp/{{sample}}.log",
     params:
         min_length=config["fastp"]["min_length"],
     threads: config["resources"]["fastp"]["threads"]
@@ -125,7 +119,7 @@ rule fastp:
             --report_title {wildcards.sample}       # title of the html report
             --thread {threads}                      # CPU cores
         )
-        fastp "${{args[@]}}" > {log} 2>&1
+        fastp "${{args[@]}}"
         """
 
 
@@ -137,8 +131,6 @@ rule fastqc_trimmed:
     output:
         html=expand(f"{RESULTS}/qc/trimmed/fastqc/{{{{sample}}}}_{{read}}_fastqc.html", read=["R1", "R2"]),
         zip=expand(f"{RESULTS}/qc/trimmed/fastqc/{{{{sample}}}}_{{read}}_fastqc.zip", read=["R1", "R2"]),
-    log:
-        f"logs/fastqc_trimmed/{{sample}}.log",
     params:
         outdir=f"{RESULTS}/qc/trimmed/fastqc",
     threads: config["resources"]["fastqc"]["threads"]
@@ -152,7 +144,7 @@ rule fastqc_trimmed:
             --threads {threads}        # files processed at the same time
             --quiet                    # only print errors
         )
-        fastqc "${{args[@]}}" {input.r1} {input.r2} > {log} 2>&1
+        fastqc "${{args[@]}}" {input.r1} {input.r2}
         """
 
 
@@ -164,8 +156,6 @@ rule multiqc_trimmed:
     output:
         html=f"{RESULTS}/qc/trimmed/multiqc_report.html",
         data=directory(f"{RESULTS}/qc/trimmed/multiqc_report_data"),
-    log:
-        "logs/multiqc_trimmed/multiqc.log",
     params:
         outdir=f"{RESULTS}/qc/trimmed",
         fastqc_dir=f"{RESULTS}/qc/trimmed/fastqc",
@@ -182,5 +172,5 @@ rule multiqc_trimmed:
             --title "SCP trimmed reads"         # title shown at the top
             --force                             # overwrite an older report
         )
-        multiqc "${{args[@]}}" {params.fastqc_dir} {params.fastp_dir} > {log} 2>&1
+        multiqc "${{args[@]}}" {params.fastqc_dir} {params.fastp_dir}
         """

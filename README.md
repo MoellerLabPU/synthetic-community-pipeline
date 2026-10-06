@@ -37,7 +37,7 @@ workflow/Snakefile          loads the settings and the sample sheet
 workflow/rules/qc.smk       steps 1-3: FastQC, fastp, MultiQC
 workflow/scripts/           small Python scripts called by the pipeline
 results/                    everything the pipeline produces
-logs/                       one log per job
+logs/slurm/                 one log per job, written by SLURM
 ```
 
 ## 1. One-time setup
@@ -139,7 +139,7 @@ ls logs/slurm/                     # one folder per pipeline step
 less logs/slurm/<step>/<file>.out  # the log of one job
 ```
 
-If a job fails, Snakemake prints the name of its log file. Fix the cause and
+If a job fails, look at its log in `logs/slurm/<step>/`. Fix the cause and
 run the same `snakemake` command again: finished jobs are not repeated.
 
 To stop a run, press Ctrl+C once in the Snakemake window. It cancels the jobs
