@@ -48,7 +48,7 @@ Do this once on the lab server (`cbsumoeller02`).
 
 ```bash
 cd /workdir/$USER
-git clone https://github.com/Sidduppal/synthetic-community-pipeline.git
+git clone https://github.com/MoellerLabPU/synthetic-community-pipeline.git
 cd synthetic-community-pipeline
 ```
 
