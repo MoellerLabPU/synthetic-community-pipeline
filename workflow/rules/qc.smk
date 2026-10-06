@@ -54,12 +54,14 @@ rule fastqc_raw:
         time=config["resources"]["fastqc"]["time"],
     shell:
         """
-        args=(
-            --outdir {params.outdir}   # folder for the .html and .zip results
-            --threads {threads}        # files processed at the same time
-            --quiet                    # only print errors
-        )
-        fastqc "${{args[@]}}" {input.r1} {input.r2}
+        # --outdir   folder for the .html and .zip results
+        # --threads  CPU threads
+        # --quiet    only print errors
+        fastqc \
+            --outdir {params.outdir} \
+            --threads {threads} \
+            --quiet \
+            {input.r1} {input.r2}
         """
 
 
@@ -79,13 +81,16 @@ rule multiqc_raw:
         time=config["resources"]["multiqc"]["time"],
     shell:
         """
-        args=(
-            --outdir {params.outdir}            # where the report is written
-            --filename multiqc_report.html      # name of the report
-            --title "SCP raw reads"             # title shown at the top
-            --force                             # overwrite an older report
-        )
-        multiqc "${{args[@]}}" {params.fastqc_dir}
+        # --outdir    where the report is written
+        # --filename  name of the report
+        # --title     title shown at the top
+        # --force     overwrite an older report
+        multiqc \
+            --outdir {params.outdir} \
+            --filename multiqc_report.html \
+            --title "SCP raw reads" \
+            --force \
+            {params.fastqc_dir}
         """
 
 
@@ -107,19 +112,25 @@ rule fastp:
         time=config["resources"]["fastp"]["time"],
     shell:
         """
-        args=(
-            --in1 {input.r1}                        # raw R1
-            --in2 {input.r2}                        # raw R2
-            --out1 {output.r1}                      # trimmed R1
-            --out2 {output.r2}                      # trimmed R2
-            --detect_adapter_for_pe                 # find adapters from the read-pair overlap
-            --length_required {params.min_length}   # drop reads shorter than this after trimming
-            --json {output.json}                    # report for MultiQC
-            --html {output.html}                    # report to open in a browser
-            --report_title {wildcards.sample}       # title of the html report
-            --thread {threads}                      # CPU cores
-        )
-        fastp "${{args[@]}}"
+        # --in1, --in2             raw R1 and R2
+        # --out1, --out2           trimmed R1 and R2
+        # --detect_adapter_for_pe  find adapters from the read-pair overlap
+        # --length_required        drop reads shorter than this after trimming
+        # --json                   report for MultiQC
+        # --html                   report to open in a browser
+        # --report_title           title of the html report
+        # --thread                 CPU cores
+        fastp \
+            --in1 {input.r1} \
+            --in2 {input.r2} \
+            --out1 {output.r1} \
+            --out2 {output.r2} \
+            --detect_adapter_for_pe \
+            --length_required {params.min_length} \
+            --json {output.json} \
+            --html {output.html} \
+            --report_title {wildcards.sample} \
+            --thread {threads}
         """
 
 
@@ -139,12 +150,14 @@ rule fastqc_trimmed:
         time=config["resources"]["fastqc"]["time"],
     shell:
         """
-        args=(
-            --outdir {params.outdir}   # folder for the .html and .zip results
-            --threads {threads}        # files processed at the same time
-            --quiet                    # only print errors
-        )
-        fastqc "${{args[@]}}" {input.r1} {input.r2}
+        # --outdir   folder for the .html and .zip results
+        # --threads  CPU threads
+        # --quiet    only print errors
+        fastqc \
+            --outdir {params.outdir} \
+            --threads {threads} \
+            --quiet \
+            {input.r1} {input.r2}
         """
 
 
@@ -166,11 +179,14 @@ rule multiqc_trimmed:
         time=config["resources"]["multiqc"]["time"],
     shell:
         """
-        args=(
-            --outdir {params.outdir}            # where the report is written
-            --filename multiqc_report.html      # name of the report
-            --title "SCP trimmed reads"         # title shown at the top
-            --force                             # overwrite an older report
-        )
-        multiqc "${{args[@]}}" {params.fastqc_dir} {params.fastp_dir}
+        # --outdir    where the report is written
+        # --filename  name of the report
+        # --title     title shown at the top
+        # --force     overwrite an older report
+        multiqc \
+            --outdir {params.outdir} \
+            --filename multiqc_report.html \
+            --title "SCP trimmed reads" \
+            --force \
+            {params.fastqc_dir} {params.fastp_dir}
         """
