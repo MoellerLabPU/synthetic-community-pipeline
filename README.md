@@ -48,8 +48,8 @@ Do this once on the lab server (`cbsumoeller02`).
 
 ```bash
 cd /workdir/$USER
-git clone <repository URL> synthetic_community
-cd synthetic_community
+git clone https://github.com/Sidduppal/synthetic-community-pipeline.git
+cd synthetic-community-pipeline
 ```
 
 ### 1.2 Install conda (skip if `conda --version` already works)
@@ -76,7 +76,7 @@ so always use the one from this environment.
 ## 2. Every time you log in
 
 ```bash
-cd /workdir/$USER/synthetic_community
+cd /workdir/$USER/synthetic-community-pipeline
 conda activate synthcom
 snakemake --version        # should print 8.6 or higher
 ```
