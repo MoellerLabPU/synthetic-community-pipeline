@@ -1,0 +1,64 @@
+# =============================================================================
+# Settings for the synthetic community pipeline.
+# This is the only file you need to edit. Paths can be absolute, or relative
+# to the top folder of this repository.
+# =============================================================================
+
+# ----------------------------------------------------------------------------
+# Inputs
+# ----------------------------------------------------------------------------
+
+# Folder that holds the raw FASTQ files (R1 and R2 for every sample).
+reads_dir: /workdir/shared_folder/Synthetic_Community_Pilot_2025_Genomes/BRC_10488880
+
+# The experiment spreadsheet and the name of the tab with one row per well.
+metadata_xlsx: /workdir/sidd/nate_synthetic_community/Synthetic_Community_Protocol_Development.xlsx
+metadata_sheet: Metadata
+
+# Sample sheet: one row per sequenced sample. It is built from the two inputs
+# above by workflow/scripts/make_samplesheet.py (see the README).
+samples: config/samples.tsv
+
+# The five genomes of the community: strain ID -> assembly FASTA.
+# Used from step 4 (reference building) onwards.
+# TO CONFIRM: these are the August 2025 strain-library assemblies.
+genomes:
+  PSL0003: /workdir/shared_folder/PSL_8-13-2025/assemblies/012_PSL0003_10483425_235MYHLT3_L1.fna.gz   # Escherichia coli
+  PSL0034: /workdir/shared_folder/PSL_8-13-2025/assemblies/055_PSL0034_10483425_235MYHLT3_L1.fna.gz   # Leuconostoc lactis
+  PSL0019: /workdir/shared_folder/PSL_8-13-2025/assemblies/013_PSL0019_10483425_235MYHLT3_L1.fna.gz   # Leuconostoc lactis_A
+  PSL0037: /workdir/shared_folder/PSL_8-13-2025/assemblies/075_PSL0037_10483425_235MYHLT3_L1.fna.gz   # Enterococcus_D gallinarum
+  PSL0033: /workdir/shared_folder/PSL_8-13-2025/assemblies/045_PSL0033_10483425_235MYHLT3_L1.fna.gz   # Phocaeicola sartorii
+
+# ----------------------------------------------------------------------------
+# Outputs
+# ----------------------------------------------------------------------------
+
+# Everything the pipeline produces goes under this folder.
+results_dir: results
+
+# ----------------------------------------------------------------------------
+# Trimming (fastp)
+# ----------------------------------------------------------------------------
+fastp:
+  # Reads shorter than this after trimming are discarded (in bp).
+  min_length: 50
+
+# ----------------------------------------------------------------------------
+# Computing resources per step
+#   threads : CPU cores for one job
+#   mem_mb  : memory for one job, in megabytes
+#   time    : wall-time limit for one job, as hours:minutes:seconds
+# ----------------------------------------------------------------------------
+resources:
+  fastqc:
+    threads: 2          # one core per FASTQ file (R1 and R2)
+    mem_mb: 4000
+    time: "2:00:00"
+  fastp:
+    threads: 8
+    mem_mb: 8000
+    time: "2:00:00"
+  multiqc:
+    threads: 1
+    mem_mb: 16000
+    time: "1:00:00"

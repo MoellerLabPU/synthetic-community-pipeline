@@ -1,0 +1,26 @@
+# One conda environment for the whole pipeline.
+# Create it once with:
+#   conda env create -f envs/environment.yml
+# Update it after this file changes with:
+#   conda env update -f envs/environment.yml --prune
+name: synthcom
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  # --- workflow manager ---
+  - snakemake>=8.6                              # 8.6 is the minimum for the plugin below
+  - snakemake-executor-plugin-cluster-generic   # lets Snakemake submit jobs with sbatch
+  # --- read QC and trimming ---
+  - fastqc
+  - multiqc
+  - fastp
+  # --- mapping and coverage ---
+  - bowtie2
+  - samtools
+  # --- genome-to-genome similarity (ANI) ---
+  - skani
+  # --- Python libraries used by the scripts in workflow/scripts ---
+  - pandas
+  - openpyxl        # reads the "Metadata" tab of the .xlsx
+  - matplotlib

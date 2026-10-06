@@ -1,0 +1,13 @@
+# Pipeline outputs and logs are not tracked
+results/
+logs/
+.snakemake/
+
+# Data and spreadsheets stay outside the repository
+*.fastq.gz
+*.bam
+*.xlsx
+
+# Python
+__pycache__/
+*.pyc

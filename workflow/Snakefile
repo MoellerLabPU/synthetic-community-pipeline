@@ -1,0 +1,81 @@
+# =============================================================================
+# Synthetic community pipeline - main Snakefile
+#
+# This file only loads the settings and the sample sheet, checks them, and
+# pulls in the rule files. The actual steps live in workflow/rules/.
+#
+# Run from the top folder of the repository:
+#   snakemake --profile profiles/slurm -n     (dry run)
+#   snakemake --profile profiles/slurm        (real run)
+# =============================================================================
+
+from pathlib import Path
+
+import pandas as pd
+
+
+# ----------------------------------------------------------------------------
+# Settings
+# ----------------------------------------------------------------------------
+configfile: "config/config.yaml"
+
+
+READS_DIR = Path(config["reads_dir"])
+RESULTS = config["results_dir"]
+
+# ----------------------------------------------------------------------------
+# Sample sheet (one row per sample, built by workflow/scripts/make_samplesheet.py)
+# ----------------------------------------------------------------------------
+if not Path(config["samples"]).is_file():
+    raise WorkflowError(
+        f"Sample sheet {config['samples']} not found. Build it first with:\n"
+        "  python workflow/scripts/make_samplesheet.py --config config/config.yaml"
+    )
+
+# dtype=str keeps values such as plate "01" exactly as written.
+samples = pd.read_csv(config["samples"], sep="\t", dtype=str)
+
+if samples.empty:
+    raise WorkflowError(f"Sample sheet {config['samples']} has no rows.")
+for column in ["sample", "fq1", "fq2"]:
+    if column not in samples.columns:
+        raise WorkflowError(f"Sample sheet {config['samples']} has no '{column}' column.")
+if samples["sample"].duplicated().any():
+    raise WorkflowError(f"Sample sheet {config['samples']} has duplicated sample names.")
+
+samples = samples.set_index("sample", drop=False)
+SAMPLES = samples.index.tolist()
+
+# Check that every FASTQ file named in the sample sheet exists.
+missing_fastq = [
+    str(READS_DIR / name)
+    for name in pd.concat([samples["fq1"], samples["fq2"]])
+    if not (READS_DIR / name).is_file()
+]
+if missing_fastq:
+    raise WorkflowError(
+        f"{len(missing_fastq)} FASTQ files from the sample sheet are missing, "
+        f"for example {missing_fastq[0]}"
+    )
+
+
+# Sample names look like SCP_SI_01_A01: letters, digits and underscores only.
+wildcard_constraints:
+    sample=r"[A-Za-z0-9_]+",
+    read=r"R[12]",
+
+
+# ----------------------------------------------------------------------------
+# Rule files
+# ----------------------------------------------------------------------------
+include: "rules/qc.smk"
+
+
+# ----------------------------------------------------------------------------
+# Default target: what "snakemake" builds when no target is named
+# ----------------------------------------------------------------------------
+rule all:
+    input:
+        # Steps 1-3: read QC before and after trimming
+        f"{RESULTS}/qc/raw/multiqc_report.html",
+        f"{RESULTS}/qc/trimmed/multiqc_report.html",

@@ -1,0 +1,41 @@
+# Snakemake profile: submit every rule as its own SLURM job.
+# Use it with:   snakemake --profile profiles/slurm
+#
+# Adapted from the AlleleFlux profile:
+# https://github.com/MoellerLabPU/AlleleFlux/blob/gene-scores/alleleflux/smk_workflow/slurm_profile/config.yaml
+# Plugin docs:
+# https://snakemake.github.io/snakemake-plugin-catalog/plugins/executor/cluster-generic.html
+
+executor: cluster-generic
+
+# How one job is submitted. Snakemake fills in the {...} placeholders per job:
+#   {threads}            from the rule's "threads:"
+#   {resources.mem_mb}   from the rule's "resources:" (or default-resources below)
+#   {resources.time}     same
+# SLURM's own log for each job goes to logs/slurm/<rule>/.
+cluster-generic-submit-cmd:
+  mkdir -p logs/slurm/{rule} &&
+  sbatch
+    --cpus-per-task={threads}
+    --mem={resources.mem_mb}
+    --time={resources.time}
+    --job-name=smk-{rule}-{wildcards}
+    --output=logs/slurm/{rule}/{rule}-{wildcards}-%j.out
+    --parsable
+
+# Ctrl+C in Snakemake cancels the jobs it submitted.
+cluster-generic-cancel-cmd: scancel
+
+# Fallbacks, used only by rules that do not set their own resources.
+default-resources:
+  - mem_mb=8000
+  - time="4:00:00"
+
+jobs: 50                        # max jobs queued or running at the same time
+restart-times: 1                # retry a failed job once
+max-jobs-per-second: 10
+max-status-checks-per-second: 1
+latency-wait: 60                # seconds to wait for output files to appear on disk
+keep-going: True                # one failed sample does not stop the others
+rerun-incomplete: True          # redo outputs left half-written by a killed job
+printshellcmds: True            # show the exact command of every job
