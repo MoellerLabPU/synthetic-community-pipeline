@@ -37,13 +37,6 @@ genomes:
 results_dir: results
 
 # ----------------------------------------------------------------------------
-# Trimming (fastp)
-# ----------------------------------------------------------------------------
-fastp:
-  # Reads shorter than this after trimming are discarded (in bp).
-  min_length: 50
-
-# ----------------------------------------------------------------------------
 # Computing resources per step
 #   threads : CPU cores for one job
 #   mem_mb  : memory for one job, in megabytes
@@ -51,7 +44,7 @@ fastp:
 # ----------------------------------------------------------------------------
 resources:
   fastqc:
-    threads: 2          # one core per FASTQ file (R1 and R2)
+    threads: 8          # one core per FASTQ file (R1 and R2)
     mem_mb: 4000
     time: "2:00:00"
   fastp:
@@ -61,4 +54,4 @@ resources:
   multiqc:
     threads: 1
     mem_mb: 16000
-    time: "1:00:00"
+    time: "1:20:00"

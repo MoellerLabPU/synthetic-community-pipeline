@@ -1,44 +1,21 @@
 #!/usr/bin/env python
 """
-Build the sample sheet (config/samples.tsv) for the pipeline.
+Build the sample sheet (config/samples.tsv): one row per sequenced sample,
+with its two FASTQ files and its row from the "Metadata" tab.
 
-It does two things:
-  1. Lists the FASTQ files in the reads folder and pairs R1 with R2.
-  2. Looks up every sample in the "Metadata" tab of the experiment spreadsheet
-     and copies over the columns that describe the experiment.
+Run from the top folder of the repository, with the conda env active:
 
-The sample sheet is built from the FASTQ files that actually exist. Wells that
-are in the metadata but have no FASTQ files are reported and left out.
-
-Usage (from the top folder of the repository, with the conda env active):
-
-    python workflow/scripts/make_samplesheet.py --config config/config.yaml
+    python workflow/scripts/make_samplesheet.py
 """
 
-import argparse
-import re
 import sys
 from pathlib import Path
 
 import pandas as pd
 import yaml
 
-# FASTQ file names look like this:
-#   461_SCP_SI_01_A01_10488880_253GGLLT4_L1_R1.fastq.gz
-#   ^   ^      ^  ^                         ^
-#   |   |      |  well                      read (R1 or R2)
-#   |   |      plate number
-#   |   plate type (SCP_SI = shaking, SCP_NSI = non-shaking)
-#   running number given by the sequencing facility
-FASTQ_PATTERN = re.compile(
-    r"^(?P<seq_number>\d+)_"
-    r"(?P<plate_type>SCP_N?SI)_"
-    r"(?P<plate_number>\d+)_"
-    r"(?P<well>[A-H]\d{2})_"
-    r".*_R(?P<read>[12])\.fastq\.gz$"
-)
-
-# Metadata columns to keep: name in the spreadsheet -> name in the sample sheet.
+# Metadata columns to read: name in the spreadsheet -> name in the sample sheet.
+# Only these columns are read from the tab.
 METADATA_COLUMNS = {
     "Sample_ID": "sample_id",
     "Plate_ID": "plate_id",
@@ -54,96 +31,54 @@ METADATA_COLUMNS = {
     "Library.Prep.Quant.nguL": "library_ng_per_ul",
 }
 
+config = yaml.safe_load(open("config/config.yaml"))
 
-def list_fastq_pairs(reads_dir: Path) -> pd.DataFrame:
-    """Return one row per sample with its R1 and R2 file names."""
-    rows = {}
-    for path in sorted(reads_dir.glob("*.fastq.gz")):
-        match = FASTQ_PATTERN.match(path.name)
-        if match is None:
-            sys.exit(f"ERROR: FASTQ name does not fit the expected pattern: {path.name}")
-        parts = match.groupdict()
-        # "sample" is used in output file names, so it has no dots: SCP_SI_01_A01
-        sample = f"{parts['plate_type']}_{parts['plate_number']}_{parts['well']}"
-        # "sample_id" is written the way the spreadsheet writes it: SCP_SI.01.A01
-        sample_id = f"{parts['plate_type']}.{parts['plate_number']}.{parts['well']}"
-        row = rows.setdefault(sample, {"sample": sample, "sample_id": sample_id})
-        column = f"fq{parts['read']}"
-        if column in row:
-            sys.exit(f"ERROR: more than one R{parts['read']} file for sample {sample}")
-        row[column] = path.name
+# --- 1. One row per R1 file ---------------------------------------------------
+# File names look like 461_SCP_SI_01_A01_10488880_253GGLLT4_L1_R1.fastq.gz:
+# a running number, then plate type (SCP_SI / SCP_NSI), plate number and well.
+rows = []
+for r1 in sorted(Path(config["reads_dir"]).glob("*_R1.fastq.gz")):
+    r2 = r1.with_name(r1.name.replace("_R1.fastq.gz", "_R2.fastq.gz"))
+    if not r2.is_file():
+        sys.exit(f"ERROR: no R2 file for {r1.name}")
+    # Drop the running number, keep the next four fields: SCP, SI, 01, A01
+    scp, incubation, plate, well = r1.name.split("_")[1:5]
+    rows.append(
+        {
+            "sample": f"{scp}_{incubation}_{plate}_{well}",     # used in file names
+            "sample_id": f"{scp}_{incubation}.{plate}.{well}",  # as in the spreadsheet
+            "fq1": r1.name,
+            "fq2": r2.name,
+        }
+    )
+if not rows:
+    sys.exit(f"ERROR: no *_R1.fastq.gz files found in {config['reads_dir']}")
+reads = pd.DataFrame(rows)
 
-    pairs = pd.DataFrame(rows.values())
-    if pairs.empty:
-        sys.exit(f"ERROR: no *.fastq.gz files found in {reads_dir}")
-    # Every sample must have both mates.
-    unpaired = pairs[pairs[["fq1", "fq2"]].isna().any(axis=1)]
-    if not unpaired.empty:
-        sys.exit(f"ERROR: samples without both R1 and R2: {', '.join(unpaired['sample'])}")
-    return pairs
+# Every sample must appear exactly once.
+duplicates = reads.loc[reads["sample"].duplicated(), "sample"]
+if not duplicates.empty:
+    sys.exit(f"ERROR: more than one R1 file for: {', '.join(duplicates)}")
 
+# --- 2. Metadata ----------------------------------------------------------------
+# usecols reads only the columns listed above.
+# dtype=str keeps values exactly as typed (for example "01" and "1/10").
+metadata = pd.read_excel(
+    config["metadata_xlsx"],
+    sheet_name=config["metadata_sheet"],
+    usecols=list(METADATA_COLUMNS),
+    dtype=str,
+).rename(columns=METADATA_COLUMNS)
+# The tab has empty rows below the table; drop them.
+metadata = metadata.dropna(subset=["sample_id"])
 
-def read_metadata(xlsx: Path, sheet: str) -> pd.DataFrame:
-    """Read the metadata tab and keep the columns listed in METADATA_COLUMNS."""
-    # dtype=str keeps values exactly as typed (for example "01" and "1/10").
-    metadata = pd.read_excel(xlsx, sheet_name=sheet, dtype=str)
-    missing = [col for col in METADATA_COLUMNS if col not in metadata.columns]
-    if missing:
-        sys.exit(f"ERROR: columns missing from tab '{sheet}': {', '.join(missing)}")
-    metadata = metadata[list(METADATA_COLUMNS)].rename(columns=METADATA_COLUMNS)
-    # The tab has empty rows below the table; drop them.
-    metadata = metadata.dropna(subset=["sample_id"])
-    if metadata["sample_id"].duplicated().any():
-        sys.exit(f"ERROR: duplicated Sample_ID values in tab '{sheet}'")
-    return metadata
+# --- 3. Join and write ------------------------------------------------------------
+# validate= makes pandas stop if a sample ID appears more than once on either side.
+sheet = reads.merge(metadata, on="sample_id", how="left", validate="one_to_one")
+unmatched = sheet.loc[sheet["plate_id"].isna(), "sample"]
+if not unmatched.empty:
+    sys.exit(f"ERROR: FASTQ samples not found in the metadata: {', '.join(unmatched)}")
 
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--config", default="config/config.yaml", help="pipeline config file")
-    args = parser.parse_args()
-
-    with open(args.config) as handle:
-        config = yaml.safe_load(handle)
-    reads_dir = Path(config["reads_dir"])
-    xlsx = Path(config["metadata_xlsx"])
-    out_path = Path(config["samples"])
-
-    # Check the inputs before doing anything.
-    if not reads_dir.is_dir():
-        sys.exit(f"ERROR: reads folder not found: {reads_dir}")
-    if not xlsx.is_file():
-        sys.exit(f"ERROR: metadata spreadsheet not found: {xlsx}")
-
-    pairs = list_fastq_pairs(reads_dir)
-    metadata = read_metadata(xlsx, config["metadata_sheet"])
-
-    # Join FASTQ pairs to metadata. validate= makes pandas fail on duplicates.
-    sheet = pairs.merge(metadata, on="sample_id", how="left", validate="one_to_one", indicator=True)
-    not_in_metadata = sheet.loc[sheet["_merge"] == "left_only", "sample"]
-    if not not_in_metadata.empty:
-        sys.exit(f"ERROR: FASTQ samples not found in the metadata: {', '.join(not_in_metadata)}")
-    sheet = sheet.drop(columns="_merge")
-
-    # Report wells that have a sequencing concentration but no FASTQ files.
-    sequenced = metadata[metadata["library_ng_per_ul"].notna() & (metadata["library_ng_per_ul"] != "NA")]
-    no_fastq = sequenced[~sequenced["sample_id"].isin(sheet["sample_id"])]
-    if not no_fastq.empty:
-        per_plate = no_fastq["plate_id"].value_counts().sort_index()
-        print(f"NOTE: {len(no_fastq)} wells have library data in the metadata but no FASTQ files:")
-        for plate, count in per_plate.items():
-            print(f"        {plate}: {count} wells")
-
-    if sheet.empty:
-        sys.exit("ERROR: the sample sheet is empty, nothing written")
-
-    sheet = sheet.sort_values("sample")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    sheet.to_csv(out_path, sep="\t", index=False, na_rep="NA")
-
-    print(f"Wrote {len(sheet)} samples to {out_path}")
-    print(sheet.groupby(["passage_day", "incubation_type"]).size().to_string())
-
-
-if __name__ == "__main__":
-    main()
+sheet.sort_values("sample").to_csv(config["samples"], sep="\t", index=False, na_rep="NA")
+print(f"Wrote {len(sheet)} samples to {config['samples']}")
+print(sheet.groupby(["passage_day", "incubation_type"]).size().to_string())

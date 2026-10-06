@@ -26,11 +26,10 @@ RESULTS = config["results_dir"]
 # ----------------------------------------------------------------------------
 # Sample sheet (one row per sample, built by workflow/scripts/make_samplesheet.py)
 # ----------------------------------------------------------------------------
+# The sample sheet decides which jobs exist, so it has to be there before
+# Snakemake plans anything. If it is missing, build it now.
 if not Path(config["samples"]).is_file():
-    raise WorkflowError(
-        f"Sample sheet {config['samples']} not found. Build it first with:\n"
-        "  python workflow/scripts/make_samplesheet.py --config config/config.yaml"
-    )
+    shell("python workflow/scripts/make_samplesheet.py")
 
 # dtype=str keeps values such as plate "01" exactly as written.
 samples = pd.read_csv(config["samples"], sep="\t", dtype=str)

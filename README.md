@@ -90,26 +90,43 @@ Open `config/config.yaml` and check the paths:
 - the five genome FASTA files
 - the output folder
 
-Then build the sample sheet. This pairs the FASTQ files and looks up each
-sample in the metadata tab:
+The sample sheet, `config/samples.tsv`, is built for you the first time you
+run `snakemake`: it pairs the FASTQ files and looks up each sample in the
+metadata tab. If the reads or the metadata change, delete it and it is built
+again on the next run:
 
 ```bash
-python workflow/scripts/make_samplesheet.py --config config/config.yaml
+rm config/samples.tsv
 ```
-
-It writes `config/samples.tsv` and prints how many samples it found per day and
-incubation type. Run it again only if the reads or the metadata change.
 
 ## 4. Run
 
-Start a `screen` session first, so the run survives if your connection drops:
+Snakemake has to keep running until the last job is done, which can take hours.
+Start it inside `tmux` or `screen`, so the run survives if your connection
+drops. Use whichever you prefer; both are installed on the server.
+
+With `tmux`:
 
 ```bash
-screen -S synthcom         # detach with Ctrl+A then D, come back with: screen -r synthcom
+tmux new -s synthcom       # start a session called synthcom
 conda activate synthcom
+# detach (leave it running): Ctrl+B, then D
+# come back later:           tmux attach -t synthcom
 ```
 
-**Always do a dry run first.** It lists the jobs that would run and touches nothing:
+Or with `screen`:
+
+```bash
+screen -S synthcom         # start a session called synthcom
+conda activate synthcom
+# detach (leave it running): Ctrl+A, then D
+# come back later:           screen -r synthcom
+```
+
+SLURM runs the individual jobs; `tmux` or `screen` only keeps the Snakemake
+window that submits them alive.
+
+**Always do a dry run first.** It lists the jobs that would run without starting any of them:
 
 ```bash
 snakemake --profile profiles/slurm -n
@@ -150,9 +167,9 @@ it submitted.
 | File or folder                             | What it is                                         |
 |--------------------------------------------|----------------------------------------------------|
 | `results/qc/raw/multiqc_report.html`       | QC of the raw reads, all samples in one report     |
-| `results/qc/trimmed/multiqc_report.html`   | QC after trimming, with the fastp trimming numbers |
-| `results/qc/fastp/`                        | one fastp report per sample                        |
-| `results/reads/trimmed/`                   | trimmed reads, used for mapping                    |
+| `results/qc/trimmed/multiqc_report.html`   | QC of the trimmed reads, all samples in one report |
+| `results/fastp/`                           | one fastp report per sample                        |
+| `results/fastp/trimmed_reads/`             | trimmed reads, used for mapping                    |
 
 More rows are added as each step is written.
 

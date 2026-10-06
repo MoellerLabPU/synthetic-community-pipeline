@@ -5,7 +5,7 @@
 #   multiqc_raw      one report for all raw FastQC results          (step 1)
 #   fastp            adapter and quality trimming                   (step 2)
 #   fastqc_trimmed   FastQC on the trimmed reads
-#   multiqc_trimmed  one report for trimmed FastQC + fastp results  (step 3)
+#   multiqc_trimmed  one report for all trimmed FastQC results      (step 3)
 #
 # Uses from the main Snakefile: config, samples, SAMPLES, READS_DIR, RESULTS
 # =============================================================================
@@ -68,10 +68,10 @@ rule fastp:
         r1=lambda wc: READS_DIR / samples.at[wc.sample, "fq1"],
         r2=lambda wc: READS_DIR / samples.at[wc.sample, "fq2"],
     output:
-        r1=f"{RESULTS}/reads/trimmed/{{sample}}_R1.fastq.gz",
-        r2=f"{RESULTS}/reads/trimmed/{{sample}}_R2.fastq.gz",
-        json=f"{RESULTS}/qc/fastp/{{sample}}.fastp.json",
-        html=f"{RESULTS}/qc/fastp/{{sample}}.fastp.html",
+        r1=f"{RESULTS}/fastp/trimmed_reads/{{sample}}_R1.fastq.gz",
+        r2=f"{RESULTS}/fastp/trimmed_reads/{{sample}}_R2.fastq.gz",
+        json=f"{RESULTS}/fastp/{{sample}}.fastp.json",
+        html=f"{RESULTS}/fastp/{{sample}}.fastp.html",
     threads: config["resources"]["fastp"]["threads"]
     resources:
         mem_mb=config["resources"]["fastp"]["mem_mb"],
@@ -81,7 +81,7 @@ rule fastp:
         # --in1, --in2             raw R1 and R2
         # --out1, --out2           trimmed R1 and R2
         # --detect_adapter_for_pe  find adapters from the read-pair overlap
-        # --json                   report for MultiQC
+        # --json                   report in machine-readable form
         # --html                   report to open in a browser
         # --thread                 CPU cores
         fastp \
@@ -99,8 +99,8 @@ rule fastp:
 rule fastqc_trimmed:
     """FastQC on the trimmed reads of one sample (R1 and R2 together)."""
     input:
-        r1=f"{RESULTS}/reads/trimmed/{{sample}}_R1.fastq.gz",
-        r2=f"{RESULTS}/reads/trimmed/{{sample}}_R2.fastq.gz",
+        r1=f"{RESULTS}/fastp/trimmed_reads/{{sample}}_R1.fastq.gz",
+        r2=f"{RESULTS}/fastp/trimmed_reads/{{sample}}_R2.fastq.gz",
     output:
         # One folder per sample, same layout as for the raw reads
         directory(f"{RESULTS}/qc/trimmed/fastqc/{{sample}}"),
@@ -123,10 +123,9 @@ rule fastqc_trimmed:
 
 
 rule multiqc_trimmed:
-    """Step 3: one MultiQC report for the trimmed reads, with the fastp results."""
+    """Step 3: one MultiQC report for the trimmed reads of all samples."""
     input:
         expand(f"{RESULTS}/qc/trimmed/fastqc/{{sample}}", sample=SAMPLES),
-        expand(f"{RESULTS}/qc/fastp/{{sample}}.fastp.json", sample=SAMPLES),
     output:
         # MultiQC's default names
         html=f"{RESULTS}/qc/trimmed/multiqc_report.html",
@@ -134,7 +133,6 @@ rule multiqc_trimmed:
     params:
         outdir=f"{RESULTS}/qc/trimmed",
         fastqc_dir=f"{RESULTS}/qc/trimmed/fastqc",
-        fastp_dir=f"{RESULTS}/qc/fastp",
     threads: config["resources"]["multiqc"]["threads"]
     resources:
         mem_mb=config["resources"]["multiqc"]["mem_mb"],
@@ -144,5 +142,5 @@ rule multiqc_trimmed:
         # --outdir  where the report is written
         multiqc \
             --outdir {params.outdir} \
-            {params.fastqc_dir} {params.fastp_dir}
+            {params.fastqc_dir}
         """
