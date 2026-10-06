@@ -62,7 +62,6 @@ if missing_fastq:
 # Sample names look like SCP_SI_01_A01: letters, digits and underscores only.
 wildcard_constraints:
     sample=r"[A-Za-z0-9_]+",
-    read=r"R[12]",
 
 
 # ----------------------------------------------------------------------------
