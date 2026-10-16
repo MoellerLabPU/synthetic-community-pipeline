@@ -58,6 +58,15 @@ if missing_fastq:
     )
 
 
+# Samples to map (steps 6-8): all of them, or the list given in the config.
+if config["map_samples"] == "all":
+    MAP_SAMPLES = SAMPLES
+else:
+    MAP_SAMPLES = list(config["map_samples"])
+    unknown = sorted(set(MAP_SAMPLES) - set(SAMPLES))
+    if unknown:
+        raise WorkflowError(f"map_samples not in the sample sheet: {', '.join(unknown)}")
+
 # Sample names look like SCP_SI_01_A01: letters, digits and underscores only.
 wildcard_constraints:
     sample=r"[A-Za-z0-9_]+",
@@ -67,6 +76,8 @@ wildcard_constraints:
 # Rule files
 # ----------------------------------------------------------------------------
 include: "rules/qc.smk"
+include: "rules/reference.smk"
+include: "rules/mapping.smk"
 
 
 # ----------------------------------------------------------------------------
@@ -77,3 +88,9 @@ rule all:
         # Steps 1-3: read QC before and after trimming
         f"{RESULTS}/qc/raw/multiqc_report.html",
         f"{RESULTS}/qc/trimmed/multiqc_report.html",
+        # Steps 4-5: combined reference, Bowtie2 index, ANI between the genomes
+        f"{RESULTS}/reference/combined.1.bt2",
+        f"{RESULTS}/ani/skani.tsv",
+        f"{RESULTS}/ani/fastani.tsv",
+        # Steps 6-7: Bowtie2 mapping of the chosen samples
+        expand(f"{RESULTS}/mapping/{PRESET}/{{sample}}.bam.bai", sample=MAP_SAMPLES),

@@ -18,10 +18,10 @@ Pilot (SCP) and reports how much of each of the five strains is in every sample.
 | 1    | FastQC + MultiQC on the raw reads                                   | written     |
 | 2    | fastp trimming                                                      | written     |
 | 3    | FastQC + MultiQC on the trimmed reads                               | written     |
-| 4    | Combine the 5 genomes into one reference and build a Bowtie2 index  | not written |
-| 5    | All-vs-all ANI between the 5 genomes (skani)                        | not written |
-| 6    | Bowtie2 pilot on 12 samples: 2 presets x 2 MAPQ filters             | not written |
-| 7    | Bowtie2 on all samples, sorted and indexed BAMs                     | not written |
+| 4    | Combine the 5 genomes into one reference and build a Bowtie2 index  | written     |
+| 5    | All-vs-all ANI between the 5 genomes (skani and FastANI)            | written     |
+| 6    | Bowtie2 pilot on 12 samples: 2 presets x 2 MAPQ filters             | written     |
+| 7    | Bowtie2 on all samples, sorted and indexed BAMs                     | written     |
 | 8    | Coverage per genome, relative abundance, tables and plots           | not written |
 
 The steps are being added one at a time. This table is updated as each one lands.
@@ -35,6 +35,8 @@ envs/environment.yml        the conda environment with every tool
 profiles/slurm/config.yaml  tells Snakemake how to submit jobs to SLURM
 workflow/Snakefile          loads the settings and the sample sheet
 workflow/rules/qc.smk       steps 1-3: FastQC, fastp, MultiQC
+workflow/rules/reference.smk  steps 4-5: combined reference, Bowtie2 index, ANI
+workflow/rules/mapping.smk    steps 6-7: Bowtie2 mapping
 workflow/scripts/           small Python scripts called by the pipeline
 results/                    everything the pipeline produces
 logs/slurm/                 one log per job, written by SLURM
@@ -68,7 +70,15 @@ conda env create -f envs/environment.yml
 ```
 
 This installs Snakemake, the SLURM plugin, FastQC, MultiQC, fastp, Bowtie2,
-samtools and skani into an environment called `synthcom`. It takes a few minutes.
+samtools, skani and FastANI into an environment called `synthcom`. It takes a
+few minutes.
+
+If you created the environment before and `envs/environment.yml` has changed
+since (for example a tool was added), update it instead:
+
+```bash
+conda env update -f envs/environment.yml --prune
+```
 
 The server also has a system-wide Snakemake, but it cannot submit SLURM jobs,
 so always use the one from this environment.
@@ -89,6 +99,18 @@ Open `config/config.yaml` and check the paths:
 - the metadata spreadsheet and the name of its tab
 - the five genome FASTA files
 - the output folder
+
+Two settings control the mapping (steps 6-7):
+
+- `bowtie2: very_sensitive`: `false` runs Bowtie2 with its default preset,
+  `true` adds `--very-sensitive`. The BAM files go to
+  `results/mapping/sensitive/` or `results/mapping/very_sensitive/`, so you
+  can run both and compare them.
+- `map_samples`: `all`, or a list of sample names from `config/samples.tsv`
+  to map only those (for a pilot). The QC steps always run on every sample.
+
+The `resources` block at the end sets the cores, memory and time limit used
+by every job.
 
 The sample sheet, `config/samples.tsv`, is built for you the first time you
 run `snakemake`: it pairs the FASTQ files and looks up each sample in the
@@ -141,12 +163,16 @@ snakemake --profile profiles/slurm
 Snakemake submits each job to SLURM for you and waits for them. You do not
 write any `sbatch` scripts.
 
-To run only part of the pipeline, name the output you want. Example, the raw
-read QC report only:
+To run only part of the pipeline, name the output you want. Examples: the
+raw read QC report only, or the ANI tables only:
 
 ```bash
 snakemake --profile profiles/slurm results/qc/raw/multiqc_report.html
+snakemake --profile profiles/slurm results/ani/skani.tsv results/ani/fastani.tsv
 ```
+
+The mapping steps use the trimmed reads from step 2, so they pick up a
+finished QC run in the same `results` folder without redoing it.
 
 ## 5. Check on a run
 
@@ -170,6 +196,16 @@ it submitted.
 | `results/qc/trimmed/multiqc_report.html`   | QC of the trimmed reads, all samples in one report |
 | `results/fastp/`                           | one fastp report per sample                        |
 | `results/fastp/trimmed_reads/`             | trimmed reads, used for mapping                    |
+| `results/reference/combined.fasta`       | the 5 genomes in one file, contigs prefixed with the strain ID |
+| `results/reference/combined.*.bt2`       | Bowtie2 index of that file                         |
+| `results/ani/skani.tsv`                   | ANI matrix between the genomes (skani)             |
+| `results/ani/fastani.tsv`, `.matrix`      | the same with FastANI, as pairs and as a matrix    |
+| `results/mapping/<preset>/`               | one sorted, indexed BAM per mapped sample          |
+| `logs/slurm/bowtie2_map/`                 | Bowtie2's alignment summary for each sample (overall alignment rate) |
+
+In the ANI tables, genomes are named by their FASTA file path. skani writes a
+second file, `skani.tsv.af`, with the fraction of each genome that aligned to
+the other.
 
 More rows are added as each step is written.
 

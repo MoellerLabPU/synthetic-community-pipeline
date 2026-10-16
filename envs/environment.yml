@@ -20,6 +20,7 @@ dependencies:
   - samtools
   # --- genome-to-genome similarity (ANI) ---
   - skani
+  - fastani
   # --- Python libraries used by the scripts in workflow/scripts ---
   - pandas
   - openpyxl        # reads the "Metadata" tab of the .xlsx

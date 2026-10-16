@@ -20,10 +20,7 @@ rule fastqc_raw:
         # One folder per sample. FastQC names the files inside after the
         # FASTQ files: <FASTQ name>_fastqc.html and <FASTQ name>_fastqc.zip
         directory(f"{RESULTS}/qc/raw/fastqc/{{sample}}"),
-    threads: config["resources"]["fastqc"]["threads"]
-    resources:
-        mem_mb=config["resources"]["fastqc"]["mem_mb"],
-        time=config["resources"]["fastqc"]["time"],
+    threads: config["resources"]["threads"]
     shell:
         """
         # FastQC does not create its output folder
@@ -49,10 +46,7 @@ rule multiqc_raw:
     params:
         outdir=f"{RESULTS}/qc/raw",
         fastqc_dir=f"{RESULTS}/qc/raw/fastqc",
-    threads: config["resources"]["multiqc"]["threads"]
-    resources:
-        mem_mb=config["resources"]["multiqc"]["mem_mb"],
-        time=config["resources"]["multiqc"]["time"],
+    threads: 1
     shell:
         """
         # --outdir  where the report is written
@@ -72,10 +66,7 @@ rule fastp:
         r2=f"{RESULTS}/fastp/trimmed_reads/{{sample}}_R2.fastq.gz",
         json=f"{RESULTS}/fastp/{{sample}}.fastp.json",
         html=f"{RESULTS}/fastp/{{sample}}.fastp.html",
-    threads: config["resources"]["fastp"]["threads"]
-    resources:
-        mem_mb=config["resources"]["fastp"]["mem_mb"],
-        time=config["resources"]["fastp"]["time"],
+    threads: config["resources"]["threads"]
     shell:
         """
         # --in1, --in2             raw R1 and R2
@@ -104,10 +95,7 @@ rule fastqc_trimmed:
     output:
         # One folder per sample, same layout as for the raw reads
         directory(f"{RESULTS}/qc/trimmed/fastqc/{{sample}}"),
-    threads: config["resources"]["fastqc"]["threads"]
-    resources:
-        mem_mb=config["resources"]["fastqc"]["mem_mb"],
-        time=config["resources"]["fastqc"]["time"],
+    threads: config["resources"]["threads"]
     shell:
         """
         # FastQC does not create its output folder
@@ -133,10 +121,7 @@ rule multiqc_trimmed:
     params:
         outdir=f"{RESULTS}/qc/trimmed",
         fastqc_dir=f"{RESULTS}/qc/trimmed/fastqc",
-    threads: config["resources"]["multiqc"]["threads"]
-    resources:
-        mem_mb=config["resources"]["multiqc"]["mem_mb"],
-        time=config["resources"]["multiqc"]["time"],
+    threads: 1
     shell:
         """
         # --outdir  where the report is written
