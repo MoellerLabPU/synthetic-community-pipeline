@@ -45,7 +45,7 @@ for r1 in sorted(Path(config["reads_dir"]).glob("*_R1.fastq.gz")):
     scp, incubation, plate, well = r1.name.split("_")[1:5]
     rows.append(
         {
-            "sample": f"{scp}_{incubation}_{plate}_{well}",     # used in file names
+            "sample": f"{scp}_{incubation}_{plate}_{well}",  # used in file names
             "sample_id": f"{scp}_{incubation}.{plate}.{well}",  # as in the spreadsheet
             "fq1": r1.name,
             "fq2": r2.name,
@@ -79,6 +79,8 @@ unmatched = sheet.loc[sheet["plate_id"].isna(), "sample"]
 if not unmatched.empty:
     sys.exit(f"ERROR: FASTQ samples not found in the metadata: {', '.join(unmatched)}")
 
-sheet.sort_values("sample").to_csv(config["samples"], sep="\t", index=False, na_rep="NA")
+sheet.sort_values("sample").to_csv(
+    config["samples"], sep="\t", index=False, na_rep="NA"
+)
 print(f"Wrote {len(sheet)} samples to {config['samples']}")
 print(sheet.groupby(["passage_day", "incubation_type"]).size().to_string())

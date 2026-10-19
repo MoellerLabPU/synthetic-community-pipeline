@@ -24,4 +24,4 @@ dependencies:
   # --- Python libraries used by the scripts in workflow/scripts ---
   - pandas
   - openpyxl        # reads the "Metadata" tab of the .xlsx
-  - matplotlib
+  - plotnine      # plots (ggplot2 for Python)

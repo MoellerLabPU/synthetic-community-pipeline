@@ -22,7 +22,7 @@ Pilot (SCP) and reports how much of each of the five strains is in every sample.
 | 5    | All-vs-all ANI between the 5 genomes (skani and FastANI)            | written     |
 | 6    | Bowtie2 pilot on 12 samples: 2 presets x 2 MAPQ filters             | written     |
 | 7    | Bowtie2 on all samples, sorted and indexed BAMs                     | written     |
-| 8    | Coverage per genome, relative abundance, tables and plots           | not written |
+| 8    | Coverage per genome, relative abundance, tables and plots           | written     |
 
 The steps are being added one at a time. This table is updated as each one lands.
 
@@ -37,6 +37,7 @@ workflow/Snakefile          loads the settings and the sample sheet
 workflow/rules/qc.smk       steps 1-3: FastQC, fastp, MultiQC
 workflow/rules/reference.smk  steps 4-5: combined reference, Bowtie2 index, ANI
 workflow/rules/mapping.smk    steps 6-7: Bowtie2 mapping
+workflow/rules/abundance.smk  step 8: coverage, relative abundance, plots
 workflow/scripts/           small Python scripts called by the pipeline
 results/                    everything the pipeline produces
 logs/slurm/                 one log per job, written by SLURM
@@ -70,11 +71,14 @@ conda env create -f envs/environment.yml
 ```
 
 This installs Snakemake, the SLURM plugin, FastQC, MultiQC, fastp, Bowtie2,
-samtools, skani and FastANI into an environment called `synthcom`. It takes a
+samtools, skani, FastANI and the Python libraries into an environment called `synthcom`. It takes a
 few minutes.
 
 If you created the environment before and `envs/environment.yml` has changed
-since (for example a tool was added), update it instead:
+since, update it instead. This is needed after the ANI and abundance steps
+were added: they brought in FastANI and plotnine (the plotting library), and
+the mapping and plotting steps fail with "command not found" or
+"No module named plotnine" until the environment is updated:
 
 ```bash
 conda env update -f envs/environment.yml --prune
@@ -202,12 +206,55 @@ it submitted.
 | `results/ani/fastani.tsv`, `.matrix`      | the same with FastANI, as pairs and as a matrix    |
 | `results/mapping/<preset>/`               | one sorted, indexed BAM per mapped sample          |
 | `logs/slurm/bowtie2_map/`                 | Bowtie2's alignment summary for each sample (overall alignment rate) |
+| `results/coverage/<preset>/`              | `samtools coverage` output per sample, one line per contig |
+| `results/abundance/<preset>/abundance.tsv` | per sample and strain: mapped reads, mean depth, breadth, relative abundance, with the metadata |
+| `results/abundance/<preset>/composition_wells.png` | one stacked bar per well; rows = conditions, columns = passage days |
+| `results/abundance/<preset>/composition_means.png` | mean per day as a line with one point per well, one panel per condition |
+| `results/abundance/<preset>/composition_*_contig_average.png` | the same two figures from rel_abundance_contig_average |
 
 In the ANI tables, genomes are named by their FASTA file path. skani writes a
 second file, `skani.tsv.af`, with the fraction of each genome that aligned to
 the other.
 
-More rows are added as each step is written.
+### How coverage and abundance are calculated
+
+`samtools coverage` reports, for every contig, the number of mapped reads, the
+number of bases covered by at least one read (`covbases`) and the mean depth
+(`meandepth`). The genomes are in several contigs each, so `abundance.py` sums
+the contigs of each strain. For every sample and strain:
+
+- **mapped bases** = sum over the strain's contigs of `meandepth` x contig
+  length. Multiplying by the length first means a long contig counts for more
+  than a short one, which is what makes the sum correct.
+- **mean_depth** = mapped bases / genome length. The mean depth over the whole
+  genome; positions without any read count as zero, and each contig counts in
+  proportion to its length. This is the same number as `bedtools genomecov`
+  gives (as used by Autometa) and as AlleleFlux's
+  `average_coverage_including_zeros` and `length_weighted_coverage`.
+- **mean_depth_contig_average** = plain average of the contigs' `meandepth`
+  values, so a 500 bp contig counts as much as a 400 kb one. Given for
+  comparison.
+- **breadth** = covered bases / genome length. The fraction of the genome
+  with at least one read.
+- **rel_abundance** = mean_depth / sum of mean_depth over the five strains.
+- **rel_abundance_contig_average** = the same from mean_depth_contig_average.
+
+The two depths answer different questions. mean_depth asks "how many read
+bases landed on this genome, per base of genome?", which is what abundance
+means. mean_depth_contig_average asks "what is the typical depth of a contig
+of this genome?", which depends on how the assembly happens to be split up.
+Example with a genome of two contigs, one of 1,000,000 bp at 10x depth and one
+of 1,000 bp at 100x: mean_depth = (10 x 1,000,000 + 100 x 1,000) / 1,001,000 =
+10.1x, while mean_depth_contig_average = (10 + 100) / 2 = 55x. In this data the
+short contigs (often repeats or rRNA fragments) carry more depth than the long
+ones, so mean_depth_contig_average is 1.3x higher for E. coli, 1.8x for
+Enterococcus and 2-50x for the near-absent strains. Because the factor differs
+between strains it changes the composition: in the pilot, Enterococcus moves
+from about 75% to about 81% and E. coli from 25% to 18% with the same reads.
+Both are in the table; the plots are made for both.
+
+A strain with a low rel_abundance and a low breadth (a few percent of the
+genome) is at the detection limit rather than present.
 
 ## Changing how jobs are submitted
 

@@ -78,6 +78,7 @@ wildcard_constraints:
 include: "rules/qc.smk"
 include: "rules/reference.smk"
 include: "rules/mapping.smk"
+include: "rules/abundance.smk"
 
 
 # ----------------------------------------------------------------------------
@@ -94,3 +95,7 @@ rule all:
         f"{RESULTS}/ani/fastani.tsv",
         # Steps 6-7: Bowtie2 mapping of the chosen samples
         expand(f"{RESULTS}/mapping/{PRESET}/{{sample}}.bam.bai", sample=MAP_SAMPLES),
+        # Step 8: relative abundance table and plots
+        f"{RESULTS}/abundance/{PRESET}/abundance.tsv",
+        f"{RESULTS}/abundance/{PRESET}/composition_wells.png",
+        f"{RESULTS}/abundance/{PRESET}/composition_means.png",
