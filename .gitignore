@@ -11,3 +11,4 @@ logs/
 # Python
 __pycache__/
 *.pyc
+snakemake-*.out

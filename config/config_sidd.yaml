@@ -1,0 +1,60 @@
+# =============================================================================
+# Settings for the synthetic community pipeline, Sidd's copy for runs on
+# cbsumoeller02 (absolute results_dir). config.yaml is the one to start from.
+# This is the only file you need to edit. Paths can be absolute, or relative
+# to the top folder of this repository.
+# =============================================================================
+
+# ----------------------------------------------------------------------------
+# Inputs
+# ----------------------------------------------------------------------------
+
+# Folder that holds the raw FASTQ files (R1 and R2 for every sample).
+reads_dir: /workdir/shared_folder/Synthetic_Community_Pilot_2025_Genomes/BRC_10488880
+
+# The experiment spreadsheet and the name of the tab with one row per well.
+metadata_xlsx: /workdir/sidd/nate_synthetic_community/Synthetic_Community_Protocol_Development.xlsx
+metadata_sheet: Metadata
+
+# Sample sheet: one row per sequenced sample. It is built from the two inputs
+# above by workflow/scripts/make_samplesheet.py (see the README).
+samples: config/samples.tsv
+
+# The five genomes of the community: strain ID -> assembly FASTA.
+# Used from step 4 (reference building) onwards.
+# TO CONFIRM: these are the August 2025 strain-library assemblies.
+genomes:
+  PSL0003: /workdir/shared_folder/PSL_8-13-2025/assemblies/012_PSL0003_10483425_235MYHLT3_L1.fna.gz   # Escherichia coli
+  PSL0034: /workdir/shared_folder/PSL_8-13-2025/assemblies/055_PSL0034_10483425_235MYHLT3_L1.fna.gz   # Leuconostoc lactis
+  PSL0019: /workdir/shared_folder/PSL_8-13-2025/assemblies/013_PSL0019_10483425_235MYHLT3_L1.fna.gz   # Leuconostoc lactis_A
+  PSL0037: /workdir/shared_folder/PSL_8-13-2025/assemblies/075_PSL0037_10483425_235MYHLT3_L1.fna.gz   # Enterococcus_D gallinarum
+  PSL0033: /workdir/shared_folder/PSL_8-13-2025/assemblies/045_PSL0033_10483425_235MYHLT3_L1.fna.gz   # Phocaeicola sartorii
+
+# ----------------------------------------------------------------------------
+# Outputs
+# ----------------------------------------------------------------------------
+
+# Everything the pipeline produces goes under this folder.
+results_dir: /local/workdir/sidd/nate_synthetic_community/synthetic-community-pipeline/results
+
+# ----------------------------------------------------------------------------
+# Mapping (steps 6-7)
+# ----------------------------------------------------------------------------
+bowtie2:
+  # true: run Bowtie2 with --very-sensitive; false: Bowtie2's default (--sensitive)
+  very_sensitive: false
+
+# Which samples to map: "all", or a list of sample names from config/samples.tsv
+# (useful for a pilot), for example:
+#   map_samples:
+#     - SCP_SI_01_A01
+#     - SCP_SI_02_A01
+map_samples: all
+
+# ----------------------------------------------------------------------------
+# Computing resources, the same for every job
+# ----------------------------------------------------------------------------
+resources:
+  threads: 8          # CPU cores for the multi-threaded steps (MultiQC uses 1)
+  mem_mb: 16000       # memory per job, in megabytes
+  time: "4:00:00"     # time limit per job, hours:minutes:seconds

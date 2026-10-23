@@ -3,11 +3,12 @@
 Build the sample sheet (config/samples.tsv): one row per sequenced sample,
 with its two FASTQ files and its row from the "Metadata" tab.
 
-Run from the top folder of the repository, with the conda env active:
+Usage (the Snakefile runs this when the sample sheet is missing):
 
-    python workflow/scripts/make_samplesheet.py
+    python make_samplesheet.py --config config/config.yaml --out config/samples.tsv
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -31,7 +32,12 @@ METADATA_COLUMNS = {
     "Library.Prep.Quant.nguL": "library_ng_per_ul",
 }
 
-config = yaml.safe_load(open("config/config.yaml"))
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--config", required=True, help="pipeline config file")
+parser.add_argument("--out", required=True, help="sample sheet to write (TSV)")
+args = parser.parse_args()
+
+config = yaml.safe_load(open(args.config))
 
 # --- 1. One row per R1 file ---------------------------------------------------
 # File names look like 461_SCP_SI_01_A01_10488880_253GGLLT4_L1_R1.fastq.gz:
@@ -79,8 +85,6 @@ unmatched = sheet.loc[sheet["plate_id"].isna(), "sample"]
 if not unmatched.empty:
     sys.exit(f"ERROR: FASTQ samples not found in the metadata: {', '.join(unmatched)}")
 
-sheet.sort_values("sample").to_csv(
-    config["samples"], sep="\t", index=False, na_rep="NA"
-)
+sheet.sort_values("sample").to_csv(args.out, sep="\t", index=False, na_rep="NA")
 print(f"Wrote {len(sheet)} samples to {config['samples']}")
 print(sheet.groupby(["passage_day", "incubation_type"]).size().to_string())

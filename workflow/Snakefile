@@ -17,7 +17,15 @@ import pandas as pd
 # ----------------------------------------------------------------------------
 # Settings
 # ----------------------------------------------------------------------------
-configfile: "config/config.yaml"
+# The repository folder (one above this Snakefile). Paths to files that are
+# part of the repository are built from it, so the pipeline can be run with
+# another working directory (snakemake --directory) and another config file
+# (snakemake --configfile).
+REPO = Path(workflow.basedir).parent
+SCRIPTS = REPO / "workflow" / "scripts"
+
+
+configfile: str(REPO / "config" / "config.yaml")
 
 
 READS_DIR = Path(config["reads_dir"])
@@ -28,11 +36,13 @@ RESULTS = config["results_dir"]
 # ----------------------------------------------------------------------------
 # The sample sheet decides which jobs exist, so it has to be there before
 # Snakemake plans anything. If it is missing, build it now.
-if not Path(config["samples"]).is_file():
-    shell("python workflow/scripts/make_samplesheet.py")
+# A relative sample sheet path is taken from the repository folder.
+SAMPLES_TSV = REPO / config["samples"]
+if not SAMPLES_TSV.is_file():
+    shell(f"python {SCRIPTS}/make_samplesheet.py --config {workflow.configfiles[0]} --out {SAMPLES_TSV}")
 
 # dtype=str keeps values such as plate "01" exactly as written.
-samples = pd.read_csv(config["samples"], sep="\t", dtype=str)
+samples = pd.read_csv(SAMPLES_TSV, sep="\t", dtype=str)
 
 if samples.empty:
     raise WorkflowError(f"Sample sheet {config['samples']} has no rows.")

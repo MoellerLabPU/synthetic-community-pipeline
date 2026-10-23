@@ -6,8 +6,8 @@ measure (rel_abundance from the length-weighted depth, and
 rel_abundance_contig_average from the plain average of contig depths):
 
 composition_wells[_contig_average].png
-    one stacked bar per well; rows = conditions (incubation type, starting
-    concentration, dilution), columns = passage day
+    one stacked bar per well; rows = starting concentration x dilution,
+    columns = incubation type x passage day
 composition_means[_contig_average].png
     per strain, the mean over the wells of a day as a line, with one point
     per well; one panel per condition
@@ -57,7 +57,15 @@ table = pd.read_csv(
 strains = sorted(table["strain"].unique())
 colour = dict(zip(strains, COLOURS))
 
-# One label per condition, used for the panels
+# Panel labels. The stacked-bar figure uses rows = starting concentration x
+# dilution and columns = incubation type x day (12 x 6 panels); the means
+# figure uses one panel per full condition (24 panels, 4 per row).
+table["concentration_dilution"] = (
+    table["starting_concentration"] + " CFU/mL\ndilution " + table["passage_dilution"]
+)
+table["incubation_day"] = (
+    table["incubation_type"] + "\nday " + table["passage_day"].astype(str)
+)
 table["condition"] = (
     table["incubation_type"]
     + "\n"
@@ -66,13 +74,15 @@ table["condition"] = (
     + "dilution "
     + table["passage_dilution"]
 )
-table["day"] = "day " + table["passage_day"].astype(str)
+n_rows = table["concentration_dilution"].nunique()
+n_conditions = table["condition"].nunique()
 # Replicate number (1, 2, ...) of each well within its condition and day, so
 # that every panel has the same x positions whatever the wells are called
 table["replicate"] = (
-    table.groupby(["condition", "day"])["sample"].rank(method="dense").astype(int)
+    table.groupby(["condition", "passage_day"])["sample"]
+    .rank(method="dense")
+    .astype(int)
 )
-n_conditions = table["condition"].nunique()
 
 # The same two figures for each abundance measure
 MEASURES = {
@@ -88,7 +98,7 @@ for measure, (suffix, description) in MEASURES.items():
     wells = (
         ggplot(table, aes(x="factor(replicate)", y=measure, fill="strain"))
         + geom_col()  # bars stack by default
-        + facet_grid("condition ~ day")
+        + facet_grid("concentration_dilution ~ incubation_day")
         + scale_fill_manual(values=colour)
         + labs(
             x="replicate well",
@@ -101,8 +111,8 @@ for measure, (suffix, description) in MEASURES.items():
     )
     wells.save(
         outdir / f"composition_wells{suffix}.png",
-        width=9,
-        height=1.6 * n_conditions + 1,
+        width=13,
+        height=1.6 * n_rows + 1,
         dpi=150,
         verbose=False,
     )

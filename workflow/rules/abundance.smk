@@ -7,7 +7,7 @@
 #                      metadata
 #   abundance_plots    composition over time per condition
 #
-# Uses from the main Snakefile: config, RESULTS, MAP_SAMPLES, PRESET
+# Uses from the main Snakefile: config, RESULTS, MAP_SAMPLES, PRESET, SCRIPTS, SAMPLES_TSV
 # =============================================================================
 
 
@@ -31,13 +31,13 @@ rule abundance_table:
     """One table with depth, breadth and relative abundance per sample and strain."""
     input:
         coverage=expand(f"{RESULTS}/coverage/{PRESET}/{{sample}}.coverage.tsv", sample=MAP_SAMPLES),
-        samples=config["samples"],
+        samples=SAMPLES_TSV,
     output:
         f"{RESULTS}/abundance/{PRESET}/abundance.tsv",
     threads: 1
     shell:
         """
-        python workflow/scripts/abundance.py \
+        python {SCRIPTS}/abundance.py \
             --samples {input.samples} \
             --out {output} \
             --coverage {input.coverage}
@@ -59,7 +59,7 @@ rule abundance_plots:
     threads: 1
     shell:
         """
-        python workflow/scripts/plot_abundance.py \
+        python {SCRIPTS}/plot_abundance.py \
             --table {input} \
             --outdir {params.outdir}
         """

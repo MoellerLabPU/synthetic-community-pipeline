@@ -33,6 +33,7 @@ config/config.yaml          all paths and settings (the only file you edit)
 config/samples.tsv          one row per sample, built from the metadata spreadsheet
 envs/environment.yml        the conda environment with every tool
 profiles/slurm/config.yaml  tells Snakemake how to submit jobs to SLURM
+run_pipeline.sh             runs Snakemake as a SLURM job
 workflow/Snakefile          loads the settings and the sample sheet
 workflow/rules/qc.smk       steps 1-3: FastQC, fastp, MultiQC
 workflow/rules/reference.smk  steps 4-5: combined reference, Bowtie2 index, ANI
@@ -151,6 +152,19 @@ conda activate synthcom
 
 SLURM runs the individual jobs; `tmux` or `screen` only keeps the Snakemake
 window that submits them alive.
+
+Alternatively, submit Snakemake itself as a SLURM job, and no `tmux` or
+`screen` is needed. The script takes the config file and the working
+directory; results and job logs are written inside the working directory:
+
+```bash
+sbatch run_pipeline.sh config/config.yaml .                  # everything, in the repository
+sbatch run_pipeline.sh config/config.yaml /workdir/$USER/run1   # or in another folder
+sbatch run_pipeline.sh config/config.yaml . -n               # dry run
+tail -f snakemake-<jobid>.out                                # follow the Snakemake output
+```
+
+Anything after the two paths is passed on to `snakemake`.
 
 **Always do a dry run first.** It lists the jobs that would run without starting any of them:
 
